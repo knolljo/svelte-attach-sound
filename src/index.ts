@@ -1,5 +1,6 @@
-import type { HowlOptions, Howl as HowlClass } from "howler";
+import type { Howl, HowlOptions } from "howler";
 import type { Attachment } from "svelte/attachments";
+import { on } from "svelte/events";
 
 type SoundSource = HowlOptions["src"];
 type SoundEvents = [keyof HTMLElementEventMap, (keyof HTMLElementEventMap)?];
@@ -17,39 +18,34 @@ type Options = {
  * Can be used standalone for programmatic playback without any DOM dependency.
  */
 export class Sound {
-  private config: HowlOptions;
-  private howl: HowlClass | undefined;
-  private ready: Promise<void>;
+  private howl: Promise<Howl>;
 
   constructor(src: SoundSource, options: SoundOptions = {}) {
-    this.config = { ...options, src };
-    this.ready = this.create();
-  }
-
-  private whenReady(fn: () => void) {
-    void this.ready.then(fn).catch(() => {});
-  }
-
-  private async create() {
-    const { Howl } = (await import("howler/src/howler.core" as string)) as {
-      Howl: typeof HowlClass;
-    };
-    this.howl = new Howl(this.config);
+    // Dynamically imports howler core (without spatial plugin) to avoid
+    // crashing during SSR (SvelteKit) - howler accesses browser APIs on load.
+    this.howl = import("howler/src/howler.core")
+      .then(({ Howl }) => new Howl({ ...options, src }))
+      .catch((e) => {
+        console.warn("[svelte-attach-sound] Failed to load sound:", e);
+        throw e;
+      });
   }
 
   play() {
-    this.whenReady(() => this.howl?.play());
+    void this.howl.then((h) => h.play()).catch(() => {});
   }
 
   stop() {
-    this.whenReady(() => this.howl?.stop());
+    void this.howl.then((h) => h.stop()).catch(() => {});
   }
 
   destroy() {
-    this.whenReady(() => {
-      this.howl?.stop();
-      this.howl?.unload();
-    });
+    void this.howl
+      .then((h) => {
+        h.stop();
+        h.unload();
+      })
+      .catch(() => {});
   }
 }
 
@@ -79,16 +75,14 @@ export function sound(options: Options): Attachment<HTMLElement> {
     const handlePlay = () => instance.play();
     const handleStop = () => instance.stop();
 
-    element.addEventListener(playEvent, handlePlay);
-    if (stopEvent) {
-      element.addEventListener(stopEvent, handleStop);
-    }
+    const offPlay = on(element, playEvent, handlePlay);
+
+    // Use Svelte `on`: cleanup handle + correct ordering with delegated handlers.
+    const offStop = stopEvent ? on(element, stopEvent, handleStop) : null;
 
     return () => {
-      element.removeEventListener(playEvent, handlePlay);
-      if (stopEvent) {
-        element.removeEventListener(stopEvent, handleStop);
-      }
+      offPlay();
+      offStop?.();
       instance.destroy();
     };
   };
@@ -118,7 +112,11 @@ export function sound(options: Options): Attachment<HTMLElement> {
  * <button {@attach click({ volume: 0.5 })}>Click me (quieter)</button>
  * ```
  */
-export function useSound(src: SoundSource, events: SoundEvents, options?: SoundOptions) {
+export function useSound(
+  src: SoundSource,
+  events: SoundEvents,
+  options?: SoundOptions,
+) {
   return (overrideOptions?: Partial<Options>): Attachment<HTMLElement> =>
     sound({ src, events, ...options, ...overrideOptions });
 }
