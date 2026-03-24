@@ -1,6 +1,6 @@
 {
   "name": "svelte-attach-sound",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A Svelte attachment for binding sound playback to DOM events using Howler.js",
   "keywords": [
     "attachment",
