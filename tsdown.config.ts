@@ -5,5 +5,5 @@ export default defineConfig({
   format: ["esm", "cjs"],
   exports: true,
   dts: true,
-  deps: { neverBundle: ["howler", "svelte"] },
+  deps: { neverBundle: ["svelte"] },
 });
