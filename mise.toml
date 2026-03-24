@@ -20,6 +20,15 @@ _.file = "./.env.local"
 description = "Clean project"
 run = ["rm -rf node_modules dist playground/node_modules playground/build"]
 
+[tasks.play]
+description = "Run playground"
+run = [
+  "bun run build",
+  "cd playground && bun install",
+  "cd playground && bun run build",
+  "cd playground && bun run preview",
+]
+
 [tasks."release:version"]
 description = "Bump package version and create a git tag."
 usage = '''
