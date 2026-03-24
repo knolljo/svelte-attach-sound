@@ -6,4 +6,5 @@ export default defineConfig({
   exports: true,
   dts: true,
   deps: { neverBundle: ["svelte"] },
+  report: { brotli: true },
 });
