@@ -2,9 +2,15 @@ import { defineConfig } from "tsdown";
 
 export default defineConfig({
   entry: ["src/index.ts"],
-  format: ["esm", "cjs"],
-  exports: true,
+  format: ["esm"],
   dts: true,
-  deps: { neverBundle: ["svelte"] },
+  exports: true,
+  platform: "neutral",
+  target: false,
+  minify: true,
+  deps: {
+    neverBundle: ["svelte", /^svelte\//],
+    skipNodeModulesBundle: true,
+  },
   report: { brotli: true },
 });
