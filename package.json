@@ -43,17 +43,17 @@
   "devDependencies": {
     "@types/howler": "^2.2.12",
     "@types/node": "^25.0.3",
-    "bumpp": "^10.3.2",
+    "bumpp": "^11.0.1",
     "howler": "^2.2.4",
-    "oxfmt": "^0.40.0",
-    "oxlint": "^1.50.0",
-    "svelte": "^5.53.11",
-    "tsdown": "^0.21.2",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
+    "svelte": "^5.55.0",
+    "tsdown": "^0.21.4",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.1"
   },
   "peerDependencies": {
     "howler": ">=2.0.0",
-    "svelte": ">=5.53.11"
+    "svelte": ">=5.55.0"
   }
 }
