@@ -1,62 +1,89 @@
-import type { Howl, HowlOptions } from "howler";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 
-type SoundSource = HowlOptions["src"];
+type SoundSource = string;
 type SoundEvents = [keyof HTMLElementEventMap, (keyof HTMLElementEventMap)?];
-type SoundOptions = Omit<HowlOptions, "src">;
 
-/**
- * Options for the sound attachment factory.
- */
+type SoundOptions = {
+  /** Playback volume, 0.0 to 1.0. Default: 1. */
+  volume?: number;
+  /** Whether the sound loops. Default: false. */
+  loop?: boolean;
+  /** Playback rate multiplier. Default: 1. */
+  rate?: number;
+};
+
 type Options = {
+  src: SoundSource;
   events: SoundEvents;
-} & HowlOptions;
+} & SoundOptions;
 
-/**
- * A class representing a synthetic sound.
- * Can be used standalone for programmatic playback without any DOM dependency.
- */
+let ctx: AudioContext | null = null;
+function getContext(): AudioContext | null {
+  // Check SSR
+  if (typeof AudioContext === "undefined") return null;
+  return (ctx ??= new AudioContext());
+}
+
+// SSR-safe. No server-side side effects. `getContext()` returns `null` when
+// `AudioContext` is unavailable; `play` and `stop` become no-ops.
 export class Sound {
-  private howl: Promise<Howl>;
+  private buffer: Promise<AudioBuffer | null>;
+  private source: AudioBufferSourceNode | null = null;
+  private options: SoundOptions;
 
   constructor(src: SoundSource, options: SoundOptions = {}) {
-    // Dynamically imports howler core (without spatial plugin) to avoid
-    // crashing during SSR (SvelteKit) - howler accesses browser APIs on load.
-    this.howl = import("howler/src/howler.core")
-      .then(({ Howl }) => new Howl({ ...options, src }))
-      .catch((e) => {
-        console.warn("[svelte-attach-sound] Failed to load sound:", e);
-        throw e;
-      });
+    this.options = options;
+    this.buffer = this.load(src);
+  }
+
+  private async load(src: SoundSource): Promise<AudioBuffer | null> {
+    const context = getContext();
+    if (!context) return null;
+
+    try {
+      const response = await fetch(src);
+      const arrayBuffer = await response.arrayBuffer();
+      return await context.decodeAudioData(arrayBuffer);
+    } catch (e) {
+      console.warn("[svelte-attach-sound] Failed to load sound:", src, e);
+      return null;
+    }
   }
 
   play() {
-    void this.howl.then((h) => h.play()).catch(() => {});
+    void this.buffer.then((buffer) => {
+      if (!buffer) return;
+      const context = getContext();
+      if (!context) return;
+      context.resume();
+
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = this.options.loop ?? false;
+      source.playbackRate.value = this.options.rate ?? 1;
+
+      const gain = context.createGain();
+      gain.gain.value = this.options.volume ?? 1;
+      source.connect(gain).connect(context.destination);
+
+      this.source = source;
+      source.start();
+    });
   }
 
   stop() {
-    void this.howl.then((h) => h.stop()).catch(() => {});
-  }
-
-  destroy() {
-    void this.howl
-      .then((h) => {
-        h.stop();
-        h.unload();
-      })
-      .catch(() => {});
+    try {
+      this.source?.stop();
+    } catch {
+      // source may have already ended naturally
+    }
+    this.source = null;
   }
 }
 
 /**
  * Creates a sound attachment that binds playback to DOM events on the element.
- *
- * Runs inside a Svelte effect — if options contain reactive state, the attachment
- * will automatically tear down and recreate when that state changes.
- *
- * @param options Options including `src`, `events`, and any Howler options.
- * @returns A Svelte attachment.
  *
  * @example
  * ```svelte
@@ -67,35 +94,26 @@ export class Sound {
  */
 export function sound(options: Options): Attachment<HTMLElement> {
   return (element: HTMLElement) => {
-    const { src, events, ...howlOptions } = options;
+    const { src, events, ...soundOptions } = options;
     const [playEvent, stopEvent] = events;
 
-    const instance = new Sound(src, howlOptions);
+    const instance = new Sound(src, soundOptions);
 
-    const handlePlay = () => instance.play();
-    const handleStop = () => instance.stop();
-
-    const offPlay = on(element, playEvent, handlePlay);
-
-    // Use Svelte `on`: cleanup handle + correct ordering with delegated handlers.
-    const offStop = stopEvent ? on(element, stopEvent, handleStop) : null;
+    const offPlay = on(element, playEvent, () => instance.play());
+    const offStop = stopEvent
+      ? on(element, stopEvent, () => instance.stop())
+      : null;
 
     return () => {
       offPlay();
       offStop?.();
-      instance.destroy();
+      instance.stop();
     };
   };
 }
 
 /**
- * Creates a pre-configured sound attachment factory that can be reused across
- * multiple elements with optional per-element overrides.
- *
- * @param src The source URL(s) of the sound.
- * @param events The `[playEvent, stopEvent?]` tuple.
- * @param options Optional base Howler options.
- * @returns A factory function that returns a Svelte attachment.
+ * Creates a pre-configured sound attachment factory reusable across elements.
  *
  * @example
  * ```svelte
@@ -107,9 +125,7 @@ export function sound(options: Options): Attachment<HTMLElement> {
  * </script>
  *
  * <button {@attach click()}>Click me</button>
- *
- * <!-- Override options per-element -->
- * <button {@attach click({ volume: 0.5 })}>Click me (quieter)</button>
+ * <button {@attach click({ volume: 0.5 })}>Quieter</button>
  * ```
  */
 export function useSound(
