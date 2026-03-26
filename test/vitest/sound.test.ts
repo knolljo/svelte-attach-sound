@@ -69,6 +69,17 @@ function mockFetch(arrayBuffer = new ArrayBuffer(8)) {
   return { fetchMock, response };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 async function flushAsyncWork() {
   await Promise.resolve();
   await Promise.resolve();
@@ -194,6 +205,34 @@ describe("Sound", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(context.createBufferSource).not.toHaveBeenCalled();
   });
+
+  it("does not start playback if stopped before the buffer resolves", async () => {
+    const { AudioContextCtor, context } = createAudioHarness();
+    vi.stubGlobal("AudioContext", AudioContextCtor);
+    const responseDeferred = createDeferred<{ arrayBuffer: () => Promise<ArrayBuffer> }>();
+    const decodeDeferred = createDeferred<AudioBuffer>();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => responseDeferred.promise),
+    );
+    context.decodeAudioData.mockImplementation(async () => decodeDeferred.promise);
+
+    const { Sound } = await loadLibrary();
+    const instance = new Sound("/slow.opus");
+
+    instance.play();
+    instance.stop();
+
+    responseDeferred.resolve({
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+    await flushAsyncWork();
+    decodeDeferred.resolve({ kind: "buffer" } as unknown as AudioBuffer);
+    await flushAsyncWork();
+
+    expect(context.createBufferSource).not.toHaveBeenCalled();
+  });
 });
 
 describe("attachments", () => {
@@ -249,5 +288,66 @@ describe("attachments", () => {
     expect(createdSources[0].loop).toBe(true);
     expect(createdSources[0].playbackRate.value).toBe(0.75);
     expect(createdGains[0].gain.value).toBe(0.9);
+  });
+
+  it("does not let useSound overrides replace src or events", async () => {
+    const { AudioContextCtor } = createAudioHarness();
+    vi.stubGlobal("AudioContext", AudioContextCtor);
+    const { fetchMock } = mockFetch();
+
+    const { useSound } = await loadLibrary();
+    const button = document.createElement("button");
+    const attach = useSound("/click.opus", ["pointerdown"]);
+
+    attach({
+      src: "/wrong.opus",
+      events: ["click"],
+      volume: 0.9,
+    } as unknown as Parameters<typeof attach>[0])(button);
+    await flushAsyncWork();
+
+    button.dispatchEvent(new MouseEvent("click"));
+    await flushAsyncWork();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    button.dispatchEvent(new Event("pointerdown"));
+    await flushAsyncWork();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/click.opus");
+  });
+
+  it("cancels pending playback when the attachment is detached before loading completes", async () => {
+    const { AudioContextCtor, context } = createAudioHarness();
+    vi.stubGlobal("AudioContext", AudioContextCtor);
+    const responseDeferred = createDeferred<{ arrayBuffer: () => Promise<ArrayBuffer> }>();
+    const decodeDeferred = createDeferred<AudioBuffer>();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => responseDeferred.promise),
+    );
+    context.decodeAudioData.mockImplementation(async () => decodeDeferred.promise);
+
+    const { sound } = await loadLibrary();
+    const button = document.createElement("button");
+    const detach = sound({
+      src: "/slow.opus",
+      events: ["mouseenter", "mouseleave"],
+    })(button);
+
+    button.dispatchEvent(new MouseEvent("mouseenter"));
+    if (typeof detach === "function") {
+      detach();
+    }
+
+    responseDeferred.resolve({
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+    await flushAsyncWork();
+    decodeDeferred.resolve({ kind: "buffer" } as unknown as AudioBuffer);
+    await flushAsyncWork();
+
+    expect(context.createBufferSource).not.toHaveBeenCalled();
   });
 });
