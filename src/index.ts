@@ -30,6 +30,7 @@ function getContext(): AudioContext | null {
 export class Sound {
   private buffer: Promise<AudioBuffer | null>;
   private source: AudioBufferSourceNode | null = null;
+  private token = 0;
   private options: SoundOptions;
 
   constructor(src: SoundSource, options: SoundOptions = {}) {
@@ -52,8 +53,10 @@ export class Sound {
   }
 
   play() {
+    const token = this.token;
     void this.buffer.then((buffer) => {
       if (!buffer) return;
+      if (token !== this.token) return;
       const context = getContext();
       if (!context) return;
       void context.resume();
@@ -73,6 +76,7 @@ export class Sound {
   }
 
   stop() {
+    this.token += 1;
     try {
       this.source?.stop();
     } catch {
@@ -127,6 +131,13 @@ export function sound(options: Options): Attachment<HTMLElement> {
  * ```
  */
 export function useSound(src: SoundSource, events: SoundEvents, options?: SoundOptions) {
-  return (overrideOptions?: Partial<Options>): Attachment<HTMLElement> =>
-    sound({ src, events, ...options, ...overrideOptions });
+  return (overrideOptions: SoundOptions = {}): Attachment<HTMLElement> => {
+    const {
+      volume = options?.volume,
+      loop = options?.loop,
+      rate = options?.rate,
+    } = overrideOptions;
+
+    return sound({ src, events, volume, loop, rate });
+  };
 }
