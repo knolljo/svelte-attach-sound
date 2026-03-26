@@ -29,23 +29,29 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch",
-    "test": "vitest",
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "prepare": "vp config"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",
     "bumpp": "^11.0.1",
-    "oxfmt": "^0.41.0",
-    "oxlint": "^1.56.0",
     "svelte": "^5.55.0",
-    "tsdown": "^0.21.4",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.1"
+    "vite-plus": "latest",
+    "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
   },
   "peerDependencies": {
     "svelte": ">=5.55.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+      "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
+    }
   }
 }

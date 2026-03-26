@@ -1,33 +1,14 @@
-pre-commit:
-  parallel: true
-  commands:
-    # Format staged files
-    format:
-      glob: "*.{js,jsx,ts,tsx,astro,json,css}"
-      run: oxfmt {staged_files}
-      stage_fixed: true
-
-    lint:
-      glob: "*.astro"
-      run: oxlint {staged_files}
-
 pre-push:
   parallel: true
   commands:
     # Build check to ensure project builds successfully
     build:
       glob: "*.{js,jsx,ts,tsx,astro,json,css}"
-      run: bun run build
+      run: vp pack
 
     # Audit
     audit:
-      run: bun audit --audit-level=high
-
-    # test:
-    #   run: bun test
-
-    # changelog:
-    #   run: mise run changelog
+      run: vp pm audit
 
 commit-msg:
   commands:
