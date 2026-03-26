@@ -131,13 +131,6 @@ export function sound(options: Options): Attachment<HTMLElement> {
  * ```
  */
 export function useSound(src: SoundSource, events: SoundEvents, options?: SoundOptions) {
-  return (overrideOptions: SoundOptions = {}): Attachment<HTMLElement> => {
-    const {
-      volume = options?.volume,
-      loop = options?.loop,
-      rate = options?.rate,
-    } = overrideOptions;
-
-    return sound({ src, events, volume, loop, rate });
-  };
+  return (overrideOptions?: SoundOptions): Attachment<HTMLElement> =>
+    sound({ src, events, ...options, ...overrideOptions });
 }

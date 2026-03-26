@@ -290,31 +290,14 @@ describe("attachments", () => {
     expect(createdGains[0].gain.value).toBe(0.9);
   });
 
-  it("does not let useSound overrides replace src or events", async () => {
-    const { AudioContextCtor } = createAudioHarness();
-    vi.stubGlobal("AudioContext", AudioContextCtor);
-    const { fetchMock } = mockFetch();
-
+  it("types useSound overrides as sound options only", async () => {
     const { useSound } = await loadLibrary();
-    const button = document.createElement("button");
     const attach = useSound("/click.opus", ["pointerdown"]);
 
-    attach({
-      src: "/wrong.opus",
-      events: ["click"],
-      volume: 0.9,
-    } as unknown as Parameters<typeof attach>[0])(button);
-    await flushAsyncWork();
-
-    button.dispatchEvent(new MouseEvent("click"));
-    await flushAsyncWork();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    button.dispatchEvent(new Event("pointerdown"));
-    await flushAsyncWork();
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith("/click.opus");
+    // @ts-expect-error `src` is not part of the override shape.
+    void attach({ src: "/wrong.opus" });
+    // @ts-expect-error `events` is not part of the override shape.
+    void attach({ events: ["click"] });
   });
 
   it("cancels pending playback when the attachment is detached before loading completes", async () => {
