@@ -19,4 +19,10 @@ export default defineConfig({
     report: { brotli: true },
   },
   lint: { options: { typeAware: true, typeCheck: true } },
+  test: {
+    include: ["test/vitest/**/*.test.ts"],
+    environment: "jsdom",
+    restoreMocks: true,
+    unstubGlobals: true,
+  },
 });
