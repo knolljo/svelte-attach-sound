@@ -56,7 +56,7 @@ export class Sound {
       if (!buffer) return;
       const context = getContext();
       if (!context) return;
-      context.resume();
+      void context.resume();
 
       const source = context.createBufferSource();
       source.buffer = buffer;
@@ -100,9 +100,7 @@ export function sound(options: Options): Attachment<HTMLElement> {
     const instance = new Sound(src, soundOptions);
 
     const offPlay = on(element, playEvent, () => instance.play());
-    const offStop = stopEvent
-      ? on(element, stopEvent, () => instance.stop())
-      : null;
+    const offStop = stopEvent ? on(element, stopEvent, () => instance.stop()) : null;
 
     return () => {
       offPlay();
@@ -128,11 +126,7 @@ export function sound(options: Options): Attachment<HTMLElement> {
  * <button {@attach click({ volume: 0.5 })}>Quieter</button>
  * ```
  */
-export function useSound(
-  src: SoundSource,
-  events: SoundEvents,
-  options?: SoundOptions,
-) {
+export function useSound(src: SoundSource, events: SoundEvents, options?: SoundOptions) {
   return (overrideOptions?: Partial<Options>): Attachment<HTMLElement> =>
     sound({ src, events, ...options, ...overrideOptions });
 }
