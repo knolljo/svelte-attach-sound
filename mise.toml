@@ -1,5 +1,4 @@
 [tools]
-bun = "latest"
 node = { version = "22", postinstall = "corepack enable" }
 
 # === Git Helpers ===
@@ -9,12 +8,7 @@ lefthook = "latest"
 committed = "latest"
 
 [hooks]
-postinstall = ["lefthook install"] # Install Git hooks after installation
-
-[env]
-_.path = ["node_modules/.bin"]
-_.file = "./.env.local"
-
+postinstall = ["lefthook install --force"] # Install Git hooks after installation
 
 [tasks.clean]
 description = "Clean project"
@@ -36,18 +30,18 @@ arg "[increment]" default="patch" help="Version increment" {
   choices "patch" "minor" "major" "prepatch" "preminor" "premajor" "prerelease"
 }
 '''
-run = "npm version ${usage_increment}"
+run = "vpx pnpm version ${usage_increment}"
 
 [tasks."release:build"]
 description = "Build the package for distribution"
 depends = ["release:version"]
-run = "bun run build"
+run = "vp pack"
 
 [tasks."release:publish"]
 description = "Publish the package to npm"
 depends = ["release:build"]
 raw = true
-run = "npm publish"
+run = "vp pm publish"
 
 [tasks.release]
 description = "Full release: bump version → build → publish to npm"

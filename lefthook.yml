@@ -10,8 +10,12 @@ pre-push:
     audit:
       run: vp pm audit
 
+    # Check for secret leaks
+    leaks:
+      run: gitleaks dir
+
 commit-msg:
   commands:
     # Validate commit message format
     commitlint:
-      run: committed --config --commit-file {1}
+      run: committed --commit-file {1}
