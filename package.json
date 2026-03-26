@@ -1,6 +1,6 @@
 {
   "name": "svelte-attach-sound",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A Svelte attachment for binding sound playback to DOM events using the Web Audio API",
   "keywords": [
     "attachment",
