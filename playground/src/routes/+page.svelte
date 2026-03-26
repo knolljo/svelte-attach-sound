@@ -58,6 +58,17 @@
         Attachment {count}
         (mouse enter/leave sound)
     </button>
+
+    <button
+        {@attach sound({
+            src: click_mp3,
+            events: ["mouseenter", "mouseleave"],
+            loop: true,
+        })}
+    >
+        Attachment {count}
+        (mouse enter/leave sound with loop)
+    </button>
 </section>
 
 <style>
